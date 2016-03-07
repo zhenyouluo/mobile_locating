@@ -1,0 +1,823 @@
+package com.maloc.client.fc.ui;
+
+import java.io.File;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+
+import com.baidu.mapapi.map.Stroke;
+import com.maloc.client.R;
+import com.maloc.client.fc.graphics.DistanceMeasurer;
+import com.maloc.client.fc.graphics.Line;
+import com.maloc.client.fc.graphics.LineSet;
+import com.maloc.client.localizationService.Position;
+import com.maloc.client.localizationService.PositionType;
+import com.maloc.client.util.FileOperator;
+import com.maloc.client.util.GeometricUtil;
+import com.maloc.client.util.GlobalProperties;
+
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.DashPathEffect;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PointF;
+import android.graphics.Rect;
+import android.graphics.Paint.Style;
+import android.os.Environment;
+import android.util.AttributeSet;
+import android.util.FloatMath;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.widget.ImageView;
+import android.widget.Toast;
+/**
+ * 重写的ImageView, 方便执行指纹收集或者显示定位点等操作
+ * @author xhw Email:xxyx66@126.com
+ */
+public class IndoorMapImageView extends ImageView {
+
+	private State state;
+	private Matrix imageMatrix = new Matrix();
+	private Matrix savedMatrix = new Matrix();
+	private Matrix locMatrix = new Matrix();
+
+	// 第一个按下的手指的点
+	private PointF startPoint = new PointF();
+	// 两个按下的手指的触摸点的中点
+	private PointF midPoint = new PointF();
+	// 初始的两个手指按下的触摸点的距离
+	private float oriDis = 1f;
+	private Paint paint=new Paint();
+
+	private Line line=null;
+	private long timestamp;
+	
+	
+	private Bitmap bitmap=null,orignBitmap=null;
+	//private Canvas canvasTool;
+	private float scale =1f;
+	private LineSet lineSet=new LineSet();
+	//private boolean initFlag=false;
+	private ControlButtonOnClickListener controlListener=null;
+	
+	//private int needForRefresh=1;
+	//private Buffer bitmapBuffer;
+	private PointF selected;
+	private Line touched;
+	
+	public static final DashPathEffect pathEffect = new DashPathEffect(new float[]{20,10,5,10}, 1);
+	public static final int DEFAULT_STROKE_WIDTH=5;
+	public static final int BOLD_STROKE_WIDTH=10;
+	
+	private Position position=null;
+	private float degree=0;
+	private Bitmap icon_direction=BitmapFactory.decodeResource(getResources(), R.drawable.position);
+	private Bitmap icon_undirection=BitmapFactory.decodeResource(getResources(), R.drawable.position_ud);
+	private float[] orign={0,0};
+	private float[] orignVector=new float[3];
+	private float[] curVector=new float[3];
+	public IndoorMapImageView(Context context) {
+		super(context);
+		resetPaint();
+		
+	}
+
+	public IndoorMapImageView(Context context, AttributeSet attrs, int defStyle) {
+		super(context, attrs, defStyle);
+		resetPaint();
+		
+		
+	}
+
+	public IndoorMapImageView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		resetPaint();
+		
+	}
+	/**
+	 * 读取已收集线路信息
+	 * @param dirName
+	 */
+	public void loadLines(String dirName)
+	{
+		File file=new File(dirName);
+		if(!file.exists()||!file.isDirectory())
+			return;
+		String[] lines=file.list();
+		File[] sub=file.listFiles();
+		for(int k=0;k<lines.length;k++)
+		{
+			if(sub[k].isDirectory()&&sub[k].list().length<2)
+			{
+				FileOperator.deleteFile(sub[k]);
+				continue;
+			}
+			String line=lines[k];
+			String coordinates[]=line.split(" ");
+			if(coordinates.length!=4)
+				continue;
+			float[] values=new float[coordinates.length];
+			for(int i=0;i<values.length;i++)
+			{
+				values[i]=Float.parseFloat(coordinates[i]);
+			}
+			this.lineSet.add(new Line(new PointF(values[0],values[1]),new PointF(values[2],values[3])));
+		}
+		//this.needForRefresh=1;
+	}
+	/**
+	 * 重置画笔
+	 */
+	private void resetPaint()
+	{
+		paint.reset();
+		//paint.setStyle(Paint.Style.STROKE);
+		paint.setStrokeWidth(DEFAULT_STROKE_WIDTH);
+		paint.setColor(Color.GREEN);
+		paint.setAntiAlias(true);
+	}
+	/*
+	public void resetBitmap()
+	{
+		bitmapBuffer.rewind();
+		bitmap.copyPixelsFromBuffer(bitmapBuffer);
+	}*/
+	
+	float pointCorrdinateTemp[][]=new float[2][2];
+	/**
+	 * 画直线, validated为false时，画虚线，否则画实线；
+	 * 如果线段处于被选中状态则改变线段的颜色和粗细
+	 * @param canvas
+	 * @param line
+	 * @param validated
+	 * @param paint
+	 * @param m
+	 */
+	public void drawLine(Canvas canvas,Line line,boolean validated, Paint paint, Matrix m) {
+
+		//Log.i("DrawLine",validated+" "+line.isTouched());
+		pointCorrdinateTemp[0][0]=line.start.x;
+		pointCorrdinateTemp[0][1]=line.start.y;
+		pointCorrdinateTemp[1][0]=line.end.x;
+		pointCorrdinateTemp[1][1]=line.end.y;
+		m.mapPoints(pointCorrdinateTemp[0]);
+		m.mapPoints(pointCorrdinateTemp[1]);
+		if(validated==false)
+		{
+			paint.setStyle(Paint.Style.STROKE);
+			paint.setPathEffect(pathEffect);
+			Path path=new Path();
+			path.moveTo(pointCorrdinateTemp[0][0], pointCorrdinateTemp[0][1]);
+			path.lineTo(pointCorrdinateTemp[1][0], pointCorrdinateTemp[1][1]);
+			path.close();
+			canvas.drawPath(path, paint);
+			return;
+		}
+		if(line.isTouched())
+		{
+			paint.setStrokeWidth(BOLD_STROKE_WIDTH);
+			paint.setColor(Color.RED);
+		}
+		
+		canvas.drawLine(pointCorrdinateTemp[0][0],pointCorrdinateTemp[0][1],
+				pointCorrdinateTemp[1][0],pointCorrdinateTemp[1][1], paint);
+		line.setTouched(false);
+		resetPaint();
+	}
+	/**
+	 * 画直线, validated为false时，画虚线，否则画实线；
+	 * 如果线段处于被选中状态则改变线段的颜色和粗细
+	 * @param canvas
+	 * @param line
+	 * @param validated
+	 * @param color
+	 * @param paint
+	 * @param m
+	 */
+	public void drawLine(Canvas canvas,Line line,boolean validated,int color,Paint paint,Matrix m) {
+
+		paint.setColor(color);
+		this.drawLine(canvas,line, validated, paint,m);
+	}
+	/**
+	 * 画空心圆
+	 * @param canvas
+	 * @param point
+	 * @param radius
+	 * @param paint
+	 * @param m
+	 */
+	public void drawStrokeCircle(Canvas canvas,PointF point,float radius,Paint paint,Matrix m)
+	{
+		paint.setColor(Color.BLACK);
+		paint.setStyle(Style.STROKE);
+		pointCorrdinateTemp[0][0]=point.x;
+		pointCorrdinateTemp[0][1]=point.y;
+		m.mapPoints(pointCorrdinateTemp[0]);
+		canvas.drawCircle(pointCorrdinateTemp[0][0], pointCorrdinateTemp[0][1], radius, paint);
+		paint.setStyle(Style.FILL);
+	}
+	/**
+	 * 绘制线段集合
+	 * @param canvas
+	 * @param lines
+	 * @param m
+	 */
+	public void drawLines(Canvas canvas,LineSet lines, Matrix m) {
+
+		resetPaint();
+		for(Line line:lines.getSet())
+			this.drawLine(canvas,line, true,this.paint,m);
+	}
+	
+	@Override
+	protected void onDraw(Canvas canvas) {
+		//super.onDraw(canvas);
+		if(bitmap==null)
+			return;
+		canvas.save();
+		//canvas.setMatrix(imageMatrix);
+		canvas.drawBitmap(bitmap,imageMatrix, null);
+		/*if(this.needForRefresh>0)
+		{
+			//resetBitmap();
+			this.drawLines(canvas,lineSet,imageMatrix);
+			this.needForRefresh--;
+		}*/
+		
+		if((state.curentControlState==ControlState.DRAW_END||state.curentControlState==ControlState.DRAW_DONE
+				||state.curentControlState==ControlState.START_COLLECT||state.curentControlState==ControlState.SELECT))
+		{
+			//resetBitmap();
+			if(line!=null&&line.start!=null)
+			{
+				paint.setColor(Color.BLACK);
+				drawCircle(canvas,line.start.x, line.start.y, 10, paint,imageMatrix);
+			}
+			if(line!=null&&line.end!=null)
+			{
+				drawLine(canvas,this.line,true,Color.RED,paint,imageMatrix);
+				paint.setColor(Color.BLACK);
+				drawRect(canvas,line.end.x, line.end.y,10, paint,imageMatrix);
+			}
+			this.drawLines(canvas,lineSet,imageMatrix);
+			if(state.curentControlState==ControlState.SELECT)
+			{
+				drawStrokeCircle(canvas,selected,20,paint,imageMatrix);
+			}
+		}
+		else if(state.curentControlState==ControlState.STOP_COLLECT||state.curentControlState==ControlState.START_VALIDATE)
+		{
+			//resetBitmap();
+			this.drawLine(canvas,line, false,Color.GREEN,paint,imageMatrix);
+			this.drawLines(canvas,this.lineSet,imageMatrix);
+		}
+		else if(state.curentControlState==ControlState.STOP_VALIDATE)
+		{
+			//resetBitmap();
+			this.lineSet.add(line);
+			this.drawLines(canvas,lineSet,imageMatrix);
+			//this.line=null;
+			state.curentControlState=ControlState.NONE;
+		}
+		
+		else if(state.curentControlState==ControlState.LOCALIZE)
+		{
+			if(position!=null)
+			{
+				Bitmap icon=null;
+				orign[0]=(float) (position.getX()*GlobalProperties.MAP_SCALE);
+				orign[1]=(float) (position.getY()*GlobalProperties.MAP_SCALE);
+				imageMatrix.mapPoints(orign);
+				
+				locMatrix.reset();
+				if(position.getType()==PositionType.MAGNETIC)
+				{
+					icon=icon_direction;
+					this.degree=(float) (position.getTheta()/Math.PI*180);
+					double r=GeometricUtil.extractRotate(this.imageMatrix)/Math.PI*180;
+					//Log.i("indoorMap", r+"");
+					float iconCenterW=icon.getWidth()/2.0f;
+					float iconCenterH=icon.getHeight()*1/2.0f-5;
+					locMatrix.postRotate((float) ((360-degree)+r),iconCenterW ,iconCenterH);
+					locMatrix.postTranslate(orign[0]-iconCenterW, orign[1]-iconCenterH);
+				}
+				else
+				{
+					icon=icon_undirection;
+					locMatrix.postTranslate(orign[0]-icon.getWidth()/2.0f, orign[1]-icon.getHeight()/2.0f);
+				}
+				
+				//paint.setAlpha(0x77);
+				//paint.setColor(0x8EE5EE);
+				drawTransparentCircle(canvas,orign[0], 
+						orign[1], (float) (position.getRange()*GlobalProperties.MAP_SCALE+20), paint);
+				//canvas.drawPoint(arg0, arg1, arg2);
+				resetPaint(); 
+				canvas.drawBitmap(icon, locMatrix, null);
+			}
+		}
+		else
+		{
+			this.drawLines(canvas,this.lineSet,imageMatrix);
+		}
+		
+		canvas.restore();
+	}
+	/**
+	 * 绘制半透明的圆形
+	 * @param canvas
+	 * @param x
+	 * @param y
+	 * @param r
+	 * @param p
+	 */
+	private void drawTransparentCircle(Canvas canvas, float x, float y,
+			float r, Paint p) {
+
+		paint.setColor(Color.rgb(0x8e, 0xe5, 0xee));
+		paint.setAlpha(0x77);
+		canvas.drawCircle(x, y, (float) (r*GeometricUtil.extractScale(this.imageMatrix)), paint);
+		resetPaint(); 
+	}
+	/**
+	 * 绘制矩形，主要用于绘制线段的终点
+	 * @param canvas
+	 * @param x1
+	 * @param y1
+	 * @param len
+	 * @param p
+	 * @param m
+	 */
+	private void drawRect(Canvas canvas, float x1, float y1, float len,
+			Paint p,Matrix m) {
+
+		pointCorrdinateTemp[0][0]=x1;
+		pointCorrdinateTemp[0][1]=y1;
+		m.mapPoints(pointCorrdinateTemp[0]);
+		canvas.drawRect(pointCorrdinateTemp[0][0]-10, pointCorrdinateTemp[0][1]-10, 
+				pointCorrdinateTemp[0][0]+10, pointCorrdinateTemp[0][1]+10, p);
+	}
+	/**
+	 * 绘制普通圆形
+	 * @param canvas
+	 * @param x
+	 * @param y
+	 * @param radius
+	 * @param p
+	 * @param m
+	 */
+	private void drawCircle(Canvas canvas, float x, float y, int radius, Paint p,Matrix m) {
+
+		pointCorrdinateTemp[0][0]=x;
+		pointCorrdinateTemp[0][1]=y;
+		m.mapPoints(pointCorrdinateTemp[0]);
+		canvas.drawCircle(pointCorrdinateTemp[0][0], pointCorrdinateTemp[0][1], radius, p);
+		
+	}
+
+	
+	
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+
+		if(state==null)
+			return false;
+		// 进行与操作是为了判断多点触摸
+		switch (event.getAction() & MotionEvent.ACTION_MASK) {
+		case MotionEvent.ACTION_DOWN:
+			// 第一个手指按下事件
+			//imageMatrix.set(this.getImageMatrix());
+			savedMatrix.set(imageMatrix);
+			startPoint.set(event.getX(), event.getY());
+			state.currentTouchState = TouchState.DRAG;
+			timestamp=System.currentTimeMillis();
+			break;
+		case MotionEvent.ACTION_POINTER_DOWN:
+			// 第二个手指按下事件
+			oriDis = distance(event);
+			extractVector(event,orignVector);
+			if (oriDis > 10f) {
+				savedMatrix.set(imageMatrix);
+				midPoint = middle(event);
+				state.currentTouchState = TouchState.ZOOM;
+			}
+			break;
+		case MotionEvent.ACTION_UP:
+			PointF point=new PointF(event.getX(),event.getY());
+			if(distance(point,startPoint)<10f&&System.currentTimeMillis()-timestamp<500)
+			{
+				state.currentTouchState=TouchState.CLICK;
+				if (state.curentControlState == ControlState.DRAW_START) {
+					
+					//state.curentControlState = ControlState.DRAW_END;
+					//state.currentTouchState=TouchState.CLICK;
+					//PointF point=new PointF(event.getX(),event.getY());
+					line=new Line();
+					transCoordinate(point);
+					Log.i("point cor", point.x+","+point.y);
+					if(point.x<0||point.x>bitmap.getWidth()||point.y<0||point.y>bitmap.getHeight())
+					{
+						Toast.makeText(this.getContext(), "Invalide Point.",Toast.LENGTH_SHORT).show();
+						return false;
+					}
+					
+					line.start=point;
+					if(this.controlListener!=null)
+					{
+						this.controlListener.onClick(null);
+					}
+					invalidate();
+					
+				}
+				else if(state.curentControlState == ControlState.DRAW_END||state.curentControlState == ControlState.DRAW_DONE)
+				{
+					
+					transCoordinate(point);
+					Log.i("point cor", point.x+","+point.y);
+					if(point.x<0||point.x>bitmap.getWidth()||point.y<0||point.y>bitmap.getHeight())
+					{
+						Toast.makeText(this.getContext(), "Invalide Point.",Toast.LENGTH_SHORT).show();
+						return false;
+					}
+					PointF tp=DistanceMeasurer.findTouchedPoint(point, line, 20);
+					if(state.curentControlState==ControlState.DRAW_DONE&&tp!=null)
+					{
+						state.curentControlState=ControlState.SELECT;
+						selected=tp;
+					}
+					else
+					{
+						line.end=point;
+						if(state.curentControlState == ControlState.DRAW_END&&this.controlListener!=null)
+						{
+							this.controlListener.onClick(null);
+						}
+					}
+					
+					invalidate();
+				}
+				else if(state.curentControlState == ControlState.NONE)
+				{
+					transCoordinate(point);
+					this.touched=DistanceMeasurer.findTouchedLine(point, lineSet, 20);
+					if(touched!=null)
+					{
+						touched.setTouched(true);
+						//this.needForRefresh=2;
+						new AlertDialog.Builder(this.getContext())
+						.setTitle("Edit")
+						.setItems(new String[] {"Delete"}, new DialogInterface.OnClickListener(){
+
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								switch(which)
+								{
+								case 0:
+									IndoorMapImageView.this.deleteLine(touched);
+									IndoorMapImageView.this.invalidate();
+									break;
+								}
+								
+								dialog.cancel();
+							}
+							
+						})
+						.setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+
+							@Override
+							public void onClick(DialogInterface arg0, int arg1) {
+
+								touched.setTouched(false);
+								//IndoorMapImageView.this.needForRefresh=1;
+								IndoorMapImageView.this.invalidate();
+							}
+							
+						})
+						.show();
+						this.invalidate();
+					}
+				}
+				else if(state.curentControlState == ControlState.SELECT)
+				{
+					transCoordinate(point);
+					if(this.selected==line.start)
+						line.start=point;
+					else
+						line.end=point;
+					this.state.curentControlState=ControlState.DRAW_DONE;
+					this.invalidate();
+				}
+				
+			}
+			
+			
+			break;
+		case MotionEvent.ACTION_POINTER_UP:
+			// 手指放开事件
+			state.currentTouchState = TouchState.NONE;
+			break;
+		case MotionEvent.ACTION_MOVE:
+			// 手指滑动事件
+			if (state.currentTouchState == TouchState.DRAG) {
+				// 是一个手指拖动
+				imageMatrix.set(savedMatrix);
+				float dx=event.getX() - startPoint.x;
+				float dy=event.getY() - startPoint.y;
+				imageMatrix.postTranslate(dx,dy);
+				invalidate();
+				
+			} else if (state.currentTouchState == TouchState.ZOOM) {
+				// 两个手指滑动
+				float newDist = distance(event);
+				if (newDist > 10f) {
+					imageMatrix.set(savedMatrix);
+					scale= newDist / oriDis;
+					imageMatrix.postScale(scale, scale, midPoint.x, midPoint.y);
+					invalidate();
+				}
+				
+				extractVector(event,curVector);
+				double angleChanged=GeometricUtil.intersectionAngle(orignVector,curVector)/Math.PI*180;
+				if(Math.abs(angleChanged)>1)
+				{
+					imageMatrix.postRotate((float)(angleChanged), midPoint.x, midPoint.y);
+					invalidate();
+				}
+				
+			}
+			
+			break;
+		}
+
+		// 设置ImageView的Matrix
+		//this.setImageMatrix(imageMatrix);
+		return true;
+	}
+
+	private void extractVector(MotionEvent event, float[] vector) {
+
+		vector[2]=0;
+		vector[0]=event.getX(1)-event.getX(0);
+		vector[1]=event.getY(1)-event.getY(0);
+	}
+
+		
+	/**
+	 * 删除收集线段以及相关文件
+	 * @param line
+	 */
+	public void deleteLine(Line line) {
+
+		String baseDir = Environment.getExternalStorageDirectory().getPath()
+				+ "/"+GlobalProperties.FINGERPRINTS_BASE_DIR+"/";
+		String dirName=baseDir+GlobalProperties.currentFloor.getFloorPath()
+				+line.toFileName();
+		File file=new File(dirName);
+		FileOperator.deleteFile(file);
+		this.lineSet.remove(line);
+		
+	}
+	/**
+	 * 删除所有的指纹收集数据
+	 */
+	public void deleteAllLines()
+	{
+		String baseDir = Environment.getExternalStorageDirectory().getPath()
+				+ "/"+GlobalProperties.FINGERPRINTS_BASE_DIR+"/";
+		String dirName=baseDir+GlobalProperties.currentFloor.getFloorPath();
+		File file=new File(dirName);
+		FileOperator.clearDir(file);
+		this.lineSet.clear();
+		//this.needForRefresh=1;
+	}
+
+	// 计算两个触摸点之间的距离
+	private float distance(MotionEvent event) {
+		float x = event.getX(0) - event.getX(1);
+		float y = event.getY(0) - event.getY(1);
+		return (float) Math.sqrt(x * x + y * y);
+	}
+	
+	private float distance(PointF p1,PointF p2)
+	{
+		float x=p1.x-p2.x;
+		float y=p1.y-p2.y;
+		return (float) Math.sqrt(x*x+y*y);
+	}
+	/**
+	 * 坐标变换，将相对于屏幕上的坐标转换为图片的像素坐标
+	 * @param point
+	 */
+	public void transCoordinate(PointF point)
+	{
+		Matrix inverse = new Matrix();
+		this.imageMatrix.invert(inverse);
+		inverse.postTranslate(this.getScrollX(), this.getScrollY());
+		orign[0]=point.x;
+		orign[1]=point.y;
+		inverse.mapPoints(orign);
+		point.x=orign[0];
+		point.y=orign[1];
+	}
+	/*
+	public void transCoordinate(float[] src)
+	{
+		Matrix inverse = new Matrix();
+		this.imageMatrix.invert(inverse);
+		inverse.postTranslate(this.getScrollX(), this.getScrollY());
+		inverse.mapPoints(src);
+	}*/
+
+	// 计算两个触摸点的中点
+	private PointF middle(MotionEvent event) {
+		float x = event.getX(0) + event.getX(1);
+		float y = event.getY(0) + event.getY(1);
+		return new PointF(x / 2, y / 2);
+	}
+
+	public State getState() {
+		return state;
+	}
+
+	public void setState(State state) {
+		this.state = state;
+	}
+
+	public Bitmap getBitmap() {
+		return bitmap;
+	}
+
+	public void setBitmap(Bitmap bitmap) {
+		this.bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+		//this.orignBitmap=bitmap.copy(Bitmap.Config.ARGB_8888, true);
+		//bitmapBuffer=ByteBuffer.allocate(bitmap.getAllocationByteCount());
+		//bitmap.copyPixelsToBuffer(bitmapBuffer);
+		//canvasTool=new Canvas(this.bitmap);
+	}
+
+	public ControlButtonOnClickListener getControlListener() {
+		return controlListener;
+	}
+
+	public void linkToControlListener(ControlButtonOnClickListener controlListener) {
+		this.controlListener = controlListener;
+	}
+
+	public Matrix getImageMatrix() {
+		return imageMatrix;
+	}
+
+	public void setImageMatrix(Matrix imageMatrix) {
+		this.imageMatrix = imageMatrix;
+	}
+
+	public Matrix getSavedMatrix() {
+		return savedMatrix;
+	}
+
+	public void setSavedMatrix(Matrix savedMatrix) {
+		this.savedMatrix = savedMatrix;
+	}
+
+	public PointF getStartPoint() {
+		return startPoint;
+	}
+
+	public void setStartPoint(PointF startPoint) {
+		this.startPoint = startPoint;
+	}
+
+	public PointF getMidPoint() {
+		return midPoint;
+	}
+
+	public void setMidPoint(PointF midPoint) {
+		this.midPoint = midPoint;
+	}
+
+	public float getOriDis() {
+		return oriDis;
+	}
+
+	public void setOriDis(float oriDis) {
+		this.oriDis = oriDis;
+	}
+
+	public Paint getPaint() {
+		return paint;
+	}
+
+	public void setPaint(Paint paint) {
+		this.paint = paint;
+	}
+
+	public Line getLine() {
+		return line;
+	}
+
+	public void setLine(Line line) {
+		this.line = line;
+	}
+
+	public long getTimestamp() {
+		return timestamp;
+	}
+
+	public void setTimestamp(long timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public Bitmap getOrignBitmap() {
+		return orignBitmap;
+	}
+
+	public void setOrignBitmap(Bitmap orignBitmap) {
+		this.orignBitmap = orignBitmap;
+	}
+
+	
+/**
+ * 初始化，绘制地图以及收集线段
+ * @param state2
+ * @param bitmap2
+ * @param controlListener2
+ * @param sceneDir
+ */
+	public void init(State state2, Bitmap bitmap2,
+			ControlButtonOnClickListener controlListener2, String sceneDir) {
+
+		this.setState(state2);
+		this.setBitmap(bitmap2);
+		this.linkToControlListener(controlListener2);
+		loadLines(sceneDir);
+	}
+
+	public float getScale() {
+		return scale;
+	}
+
+	public void setScale(float scale) {
+		this.scale = scale;
+	}
+
+	public LineSet getLineSet() {
+		return lineSet;
+	}
+
+	public void setLineSet(LineSet lineSet) {
+		this.lineSet = lineSet;
+	}
+
+	public PointF getSelected() {
+		return selected;
+	}
+
+	public void setSelected(PointF selected) {
+		this.selected = selected;
+	}
+
+	public Line getTouched() {
+		return touched;
+	}
+
+	public void setTouched(Line touched) {
+		this.touched = touched;
+	}
+
+	public Position getPosition() {
+		return position;
+	}
+
+	public void setPosition(Position position) {
+		this.position = position;
+	}
+
+	public float getDegree() {
+		return degree;
+	}
+
+	public void setDegree(float degree) {
+		this.degree = degree;
+	}
+
+	public float[] getOrign() {
+		return orign;
+	}
+
+	public void setOrign(float[] orign) {
+		this.orign = orign;
+	}
+
+	public void setControlListener(ControlButtonOnClickListener controlListener) {
+		this.controlListener = controlListener;
+	}
+
+}

@@ -1,0 +1,224 @@
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="vertical">
+<LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >    
+    <TextView 
+        android:id="@+id/StartPointText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/StartPoint"
+        />
+    </LinearLayout>
+ <LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >    
+    <TextView 
+        android:id="@+id/x"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/x"
+        />
+    <EditText 
+         android:id="@+id/xValue"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+         android:inputType="numberDecimal" />
+    
+    <TextView 
+        android:id="@+id/y"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/y"
+        />
+    <EditText 
+         android:id="@+id/yValue"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+         android:inputType="numberDecimal"/>
+    
+    </LinearLayout>
+    
+     <LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >    
+    <TextView 
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/length"
+        />
+    <EditText 
+         android:id="@+id/length"
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+         android:inputType="numberDecimal"/>
+    </LinearLayout> 
+ 
+<LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="vertical" 
+	    >
+     <TextView 
+        android:id="@+id/OrientationText"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/selectOrientation"
+        />
+     
+     <RadioGroup 
+         android:id="@+id/orientation"
+         android:layout_width="fill_parent"
+		 android:layout_height="wrap_content"
+         android:orientation="horizontal"
+         android:checkedButton="@+id/o_east">
+         
+       <RadioButton 
+           android:id="@+id/o_east"
+           android:text="@string/east"/>
+       <RadioButton 
+           android:id="@+id/o_south"
+           android:text="@string/south"/>
+       <RadioButton 
+           android:id="@+id/o_west"
+           android:text="@string/west"/>
+       <RadioButton 
+           android:id="@+id/o_north"
+           android:text="@string/north"/>  
+     </RadioGroup>
+     
+</LinearLayout>
+
+    <LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >
+	  
+    <TextView
+        android:id="@+id/acceleration_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/acceleration_label" />
+     
+    <TextView
+        android:id="@+id/acceleration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/hello_world" />
+    
+</LinearLayout>
+
+ <LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >
+    <TextView
+        android:id="@+id/magnetic_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/magnetic_label" />
+    
+    <TextView
+        android:id="@+id/magnetic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/hello_world" />
+</LinearLayout>
+<LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >
+    <TextView
+        android:id="@+id/gyroscope_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gyroscope:" />
+    
+    <TextView
+        android:id="@+id/gyroscope"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/hello_world" />
+</LinearLayout>
+
+ <LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    > 
+
+     <TextView
+        android:id="@+id/WiFi_RSSI_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/WiFi_RSSI_label" />
+     
+    <TextView
+        android:id="@+id/WiFi_RSSI"
+        android:layout_width="wrap_content"
+        android:layout_height="200dp"
+        android:text="@string/hello_world"
+        android:scrollbars="vertical"
+        android:singleLine="false" 
+        />
+</LinearLayout>
+
+ 
+
+<LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >
+     <TextView 
+        android:id="@+id/recordFileName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/recordFileName"
+        />
+     <TextView
+        android:id="@+id/recordFile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
+</LinearLayout> 
+
+
+
+<LinearLayout
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal" 
+	    >
+    <Button 
+        android:id="@+id/newFile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/newFile"
+        />    
+    <Button 
+        android:id="@+id/StartRecord"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/startRecord"
+        />
+    <Button 
+        android:id="@+id/StopRecord"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/stopRecord"
+        />
+    </LinearLayout>
+</LinearLayout>

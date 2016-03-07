@@ -1,0 +1,436 @@
+package com.maloc.client.fc.ui;
+
+import java.io.File;
+import java.util.Date;
+import java.util.List;
+
+import com.maloc.client.R;
+import com.maloc.client.bean.AngularData;
+import com.maloc.client.util.CoordinateSystemRotation;
+import com.maloc.client.util.FileOperator;
+import com.maloc.client.util.GyroComputer;
+import com.maloc.client.util.KalmanFilter;
+import com.maloc.client.util.Record;
+import com.maloc.client.util.WifiAdmin;
+
+import Jama.Matrix;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiManager;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.text.format.DateFormat;
+import android.text.method.ScrollingMovementMethod;
+import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+/**
+ * 已废弃
+ * @author xhw
+ *
+ */
+public class MainActivity_bck extends Activity implements SensorEventListener {
+
+	private SensorManager sensorManager;
+	private Sensor mSensor, aSensor, gSensor,gyroSensor;
+
+	private WifiManager mainWifi;
+	private WifiReceiver receiverWifi;
+	private List<ScanResult> wifiList;
+	private StringBuilder sb = new StringBuilder();
+	private WifiAdmin wifiAdmin;
+	private boolean wifiScanFlag=false;
+
+	private TextView wifiValue;
+	private TextView accelerationValue;
+	private TextView magneticValue;
+	private TextView recordFile;
+	private Button startRecord;
+	private Button stopRecord;
+	private Button newFile;
+	private RadioGroup orientGroup;
+	private EditText xValue;
+	private EditText yValue;
+	private EditText pathLen;
+	private TextView gyroscopeValue;
+
+	float gravity[]=new float[3];
+	float geomagnetic[]=new float[3];
+	float orientation_values[]=new float[3];
+	String direction=null;
+	long timestamp;
+	long wifiTimestamp=0;
+	private static final String PREFERENCES_NAME = "record_filename";
+
+	private GyroComputer gyroComputer;
+	float orientationValues[]=new float[3];
+	float Rot[]=new float[9];
+    float I[]=new float[9];
+	private KalmanFilter kfilter;
+	private double gyroChangedSum=0;
+	private boolean gravityStartFlag=false,magneticStartFlag=false;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main_bck);
+		String folder = Environment.getExternalStorageDirectory()
+				.getPath()
+				+ "/sensor_records";
+		File file=new File(folder);
+		if(!file.exists())
+			file.mkdir();
+		kfilter=new KalmanFilter();
+		initViews();
+		initSensorConfig();
+		initPerferenceConfig();
+		initViewActions();
+	}
+
+	private void initViewActions() {
+		newFile.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View arg0) {
+				Date now = new Date();
+				DateFormat df = new DateFormat();
+				String filename = Environment.getExternalStorageDirectory()
+						.getPath()
+						+ "/sensor_records/"
+						+ df.format("yyyy-MM-dd_hh-mm-ss", now);
+				FileOperator.directMakeDir(filename);
+				recordFile.setText(filename);
+			}
+		});
+		startRecord.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View arg0) {
+				
+				direction=getOrientationFromRadioGroup();
+				String dir=recordFile.getText().toString();
+				String info="#\t"+direction+"\t"+xValue.getText()+"\t"+yValue.getText()+"\t"+pathLen.getText();
+				Record.record(dir+"/magnetic.txt",info +"\n");
+				Record.record(dir+"/magnetic_geo.txt",info +"\n");
+				//Record.record(dir+"/magnetic_geo.txt",info +"\n");
+				Record.record(dir+"/acceleration.txt",info +"\n");
+				
+				gyroComputer=new GyroComputer();
+				sensorManager.registerListener(MainActivity_bck.this, mSensor,
+						SensorManager.SENSOR_DELAY_FASTEST);
+				sensorManager.registerListener(MainActivity_bck.this, aSensor,
+						SensorManager.SENSOR_DELAY_FASTEST);
+				sensorManager.registerListener(MainActivity_bck.this, gyroSensor,
+						SensorManager.SENSOR_DELAY_FASTEST);
+				sensorManager.registerListener(MainActivity_bck.this, gSensor,
+						SensorManager.SENSOR_DELAY_FASTEST);
+				//wifiAdmin.openWifi();
+				//IntentFilter i = new IntentFilter();
+				//i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+				//i.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+				//registerReceiver(receiverWifi, i);
+				
+				mainWifi.setWifiEnabled(true);
+				mainWifi.startScan();
+				handler.postDelayed(runnable, 3000);
+				wifiScanFlag=true;
+				wifiTimestamp=System.currentTimeMillis();
+				stopRecord.setEnabled(true);
+				startRecord.setEnabled(false);
+				
+				gyroChangedSum=0;
+				gravityStartFlag=false;
+				magneticStartFlag=false;
+
+			}
+		});
+		stopRecord.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				sensorManager.unregisterListener(MainActivity_bck.this);
+				//unregisterReceiver(receiverWifi);
+				handler.removeCallbacks(runnable);
+				wifiScanFlag=false;
+				mainWifi.setWifiEnabled(false);
+				//wifiAdmin.closeWifi();
+				startRecord.setEnabled(true);
+				stopRecord.setEnabled(false);
+			}
+		});
+
+	}
+
+	private void initPerferenceConfig() {
+		SharedPreferences sp = getSharedPreferences(PREFERENCES_NAME,
+				Activity.MODE_PRIVATE);
+		String temp = sp.getString("recordFileName", Environment
+				.getExternalStorageDirectory().getPath()
+				+ "/sensor_records/");
+		recordFile.setText(temp);
+
+	}
+
+	private void initSensorConfig() {
+		sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		mSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+		aSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+		gSensor=sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+		receiverWifi = new WifiReceiver();
+		//wifiAdmin=new WifiAdmin(this);
+		//wifiAdmin.openWifi();
+		mainWifi=(WifiManager) getSystemService(Context.WIFI_SERVICE); 
+		mainWifi.setWifiEnabled(false);
+	}
+
+	private void initViews() {
+		wifiValue = (TextView) findViewById(R.id.WiFi_RSSI);
+		wifiValue.setMovementMethod(ScrollingMovementMethod.getInstance());
+		accelerationValue = (TextView) findViewById(R.id.acceleration);
+		magneticValue = (TextView) findViewById(R.id.magnetic);
+		startRecord = (Button) findViewById(R.id.StartRecord);
+		stopRecord = (Button) findViewById(R.id.StopRecord);
+		newFile = (Button) findViewById(R.id.newFile);
+		recordFile = (TextView) findViewById(R.id.recordFile);
+		orientGroup=(RadioGroup) findViewById(R.id.orientation);
+		xValue=(EditText)findViewById(R.id.xValue);
+		yValue=(EditText)findViewById(R.id.yValue);
+		pathLen=(EditText)findViewById(R.id.length);
+		gyroscopeValue=(TextView) findViewById(R.id.gyroscope);
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.main, menu);
+		return true;
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		timestamp=System.currentTimeMillis();
+		switch (event.sensor.getType()) {
+
+		case Sensor.TYPE_ACCELEROMETER:
+			onAccelerationChanged(event);
+			break;
+		case Sensor.TYPE_MAGNETIC_FIELD:
+			
+			onMagneticFieldChanged(event);
+			break;
+		case Sensor.TYPE_GRAVITY:
+			onGravityChanged(event);
+			break;
+		case Sensor.TYPE_GYROSCOPE:
+			onGyroscopeChanged(event);
+			break;
+		}
+
+	}
+
+	/*
+	private void onUnCalibratedMagneticChanged(SensorEvent event) {
+		StringBuilder info=new StringBuilder();
+		info.append(event.values[0]+"\t");
+		info.append(event.values[1]+"\t");
+		info.append(event.values[2]+"\t");
+		this.magneticValue.setText(info.toString());
+		String dir=recordFile.getText().toString();
+		info.append(timestamp+"\t");//.append(direction+"\t").append(xValue.getText()+"\t").append(yValue.getText()+"\t");
+		Record.record(dir+"/magnetic_uncalibrated.txt", 
+				info.toString()+"\n");
+	}
+	*/
+	private void onGravityChanged(SensorEvent event) {
+
+		for(int i=0;i<3;i++)
+			gravity[i]=event.values[i];
+		gravityStartFlag=true;
+	}
+
+	
+private void onGyroscopeChanged(SensorEvent event) {
+		
+		if(!gravityStartFlag||!magneticStartFlag)
+			return;
+		
+		AngularData data=this.gyroComputer.angleChangedAroundGravity(event, gravity);
+		if(data==null)
+			return;
+		double totalChanged=data.totalAngleChanged;
+		SensorManager.getRotationMatrix(Rot, I, gravity, geomagnetic);
+	    SensorManager.getOrientation(Rot, orientationValues);
+		if(gyroChangedSum==0)
+		{
+			gyroChangedSum=orientationValues[0];
+			kfilter.init(orientationValues[0], 1);
+			return;
+		}
+	    float orientationOfKF=kfilter.filt(gyroChangedSum-totalChanged, orientationValues[0],data.dT);
+		gyroChangedSum=totalChanged;
+		gyroscopeValue.setText(orientationOfKF+"");
+		StringBuilder info=new StringBuilder();
+		info.append(totalChanged).append("\t").append(orientationOfKF).append("\t").
+			append(orientationValues[0]).append("\t").append(data.dT).append("\t").
+			append(timestamp).append("\t");	
+		String dir=recordFile.getText().toString();
+		Record.record(dir+"/gyroscope.txt", 
+				info.toString()+"\n");  
+		  
+		  
+	}
+	
+	private void onMagneticFieldChanged(SensorEvent event) {
+
+		StringBuilder info=new StringBuilder();
+		
+		info.append(event.values[0]+"\t");
+		info.append(event.values[1]+"\t");
+		info.append(event.values[2]+"\t");
+		this.magneticValue.setText(info.toString());
+		String dir=recordFile.getText().toString();
+		info.append(timestamp+"\t");//.append(direction+"\t").append(xValue.getText()+"\t").append(yValue.getText()+"\t");
+		Record.record(dir+"/magnetic.txt", 
+				info.toString()+"\n");
+		for(int i=0;i<3;i++)
+			geomagnetic[i]=event.values[i];
+		magneticStartFlag=true;
+		recordMagneticAfterCST();
+	}
+
+	private void recordMagneticAfterCST() {
+
+		float omegaMagnitude = (float)Math.sqrt(orientation_values[0]*orientation_values[0]+orientation_values[1]*orientation_values[1]+orientation_values[2]*orientation_values[2]);
+		Matrix newGeoMag=CoordinateSystemRotation.coorinateSystemRotate(orientation_values, omegaMagnitude, geomagnetic);
+		String dir=recordFile.getText().toString();
+		StringBuilder info=new StringBuilder();
+		for(int i=0;i<3;i++)
+			info.append((float)newGeoMag.getArray()[i][0]+"\t");
+		info.append(timestamp+"\t");//.append(direction+"\t").append(xValue.getText()+"\t").append(yValue.getText()+"\t");
+		Record.record(dir+"/magnetic_geo.txt", info.toString()+"\n");
+	}
+
+	private String getOrientationFromRadioGroup()
+	{
+		String direction="";
+		float Rien[]=new float[9];
+		float Inl[]=new float[9];
+		SensorManager.getRotationMatrix(Rien, Inl, gravity, geomagnetic);
+		SensorManager.getOrientation(Rien, orientation_values);
+		
+		switch(orientGroup.getCheckedRadioButtonId())
+		{
+		case R.id.o_north:
+			orientation_values[0]=(float) 0.00001;
+			direction="North";
+			break;
+		case R.id.o_east:
+			orientation_values[0]=(float) (Math.PI/2);
+			direction="East";
+			break;
+		case R.id.o_south:
+			orientation_values[0]=(float) (Math.PI);
+			direction="South";
+			break;
+		case R.id.o_west:
+			orientation_values[0]=(float) (Math.PI*3.0/2);
+			direction="West";
+			break;
+			
+		}
+		float temp=orientation_values[0];
+		orientation_values[0]=orientation_values[1];
+		orientation_values[1]=orientation_values[2];
+		orientation_values[2]=temp;
+		return direction;
+	}
+	private void onAccelerationChanged(SensorEvent event) {
+		StringBuilder info=new StringBuilder();
+		info.append(event.values[0]+"\t");
+		info.append(event.values[1]+"\t");
+		info.append(event.values[2]+"\t");
+		this.accelerationValue.setText(info);
+		String dir=recordFile.getText().toString();
+		info.append(timestamp+"\t");//.append(direction+"\t").append(xValue.getText()+"\t").append(yValue.getText()+"\t");
+		Record.record(dir+"/acceleration.txt",info.toString()+"\n");
+	}
+
+	
+	protected void onStop() {
+		super.onStop();
+		sensorManager.unregisterListener(this);
+		handler.removeCallbacks(runnable);
+		
+		SharedPreferences sp = getSharedPreferences(PREFERENCES_NAME,
+				Activity.MODE_PRIVATE);
+		SharedPreferences.Editor editor = sp.edit();
+		editor.putString("recordFileName", recordFile.getText().toString());
+		editor.commit();
+	}
+
+	
+	
+	class WifiReceiver extends BroadcastReceiver {
+
+		public void onReceive(Context c, Intent intent) {
+			
+			if(!wifiScanFlag)
+			{
+				wifiValue.setText("STOP!");
+				return;
+			}
+			sb = new StringBuilder();
+			long current=System.currentTimeMillis();
+			
+			sb.append("start:"+wifiTimestamp+"\n");
+			sb.append("interval:"+(current-wifiTimestamp)+" ms\n");
+			sb.append(direction+"\t").append(xValue.getText()+"\t").append(yValue.getText()+"\n");
+			wifiTimestamp=current;
+			wifiList = mainWifi.getScanResults();
+			mainWifi.startScan();
+			for (int i = 0; i < wifiList.size(); i++) {
+				sb.append(new Integer(i + 1).toString() + "\t");
+				sb.append(wifiList.get(i).SSID+"\t");
+				sb.append(wifiList.get(i).BSSID+"\t");
+				sb.append(wifiList.get(i).level);
+				sb.append("\n");
+			}
+			wifiValue.setText(sb);
+			String dir=recordFile.getText().toString();
+			Record.record(dir+"/wifi.txt", sb.toString()+"\n");
+		}
+	}
+	
+	private Handler handler=new Handler();
+	Runnable runnable=new Runnable(){
+		@Override
+		public void run() {
+		// TODO Auto-generated method stub
+		//要做的事情
+		MainActivity_bck.this.receiverWifi.onReceive(null, null);
+		handler.postDelayed(this, 3000);
+		}
+	};
+
+}

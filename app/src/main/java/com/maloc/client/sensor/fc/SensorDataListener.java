@@ -1,0 +1,21 @@
+package com.maloc.client.sensor.fc;
+
+import com.maloc.client.bean.AccelerationVector;
+import com.maloc.client.bean.AngularData;
+import com.maloc.client.bean.FCMagneticVector;
+import com.maloc.client.bean.OrientationVector;
+import com.maloc.client.bean.RSSIData;
+/**
+ * 传感器数据监听接口
+ * @author xhw Email:xxyx66@126.com
+ */
+public interface SensorDataListener {
+
+	public void onAccelerationDataReady(AccelerationVector av);
+	public void onGravityDataReady(AccelerationVector av);
+	public void onAngularDataReady(AngularData ad);
+	public void onMagneticDataReady(FCMagneticVector mv);
+	public void onGeoMagneticDataReady(FCMagneticVector mv);
+	public void onWiFiRSSIReceived(RSSIData rssi);
+	public void onOrientationChanged(OrientationVector ov);
+}

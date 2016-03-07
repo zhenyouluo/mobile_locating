@@ -1,0 +1,231 @@
+package com.maloc.client.sensor.fc;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+
+import com.maloc.client.bean.FCMagneticVector;
+import com.maloc.client.bean.RSSIData;
+import com.maloc.client.fc.graphics.Line;
+import com.maloc.client.util.FileOperator;
+import com.maloc.client.util.GlobalProperties;
+/**
+ * 在一个线段上收集指纹数据时，需要来回收集一次，上传之前需要合并这些数据
+ * @author xhw Email:xxyx66@126.com
+ */
+public class SensorDataMerger {
+	//private static ProgressDialog pd;  
+	
+	static class MagneticStorer
+	{
+		
+		public static void save(String filename) {
+
+			File vf=new File(filename+"/validate/magnetic_geo.txt");
+			while(!vf.exists())
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			String collectData="";
+			try {
+				collectData = FileOperator.readToString(filename+"/collect/magnetic_geo.txt");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			String validateData="";
+			try {
+				validateData = FileOperator.readToString(filename+"/validate/magnetic_geo.txt");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			List<FCMagneticVector> collectVectors=parseMagneticData(collectData);
+			List<FCMagneticVector> validateVectors=parseMagneticData(validateData);
+			merge(collectVectors,validateVectors);
+			/*File dir=new File(filename+"/update/");
+			if(!dir.exists())
+				dir.mkdirs();*/
+			saveMagneticData(filename+"/magnetic_geo.txt",collectVectors);
+		}
+		
+	}
+	
+	
+	static class WiFiStorer
+	{
+		
+		public static void save(String filename, Line line) {
+
+			File vf=new File(filename+"/validate/wifi.txt");
+			while(!vf.exists())
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			
+			String collectData="";
+			List<RSSIData> collectWifi,validateWifi;
+			try {
+				collectData = FileOperator.readToString(filename+"/collect/wifi.txt");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			collectWifi=generateRSSIData(line,collectData);
+			String validateData="";
+			try {
+				validateData = FileOperator.readToString(filename+"/validate/wifi.txt");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			Line rLine=new Line(line.end,line.start);
+			validateWifi=generateRSSIData(rLine,validateData);
+			collectWifi.addAll(validateWifi);
+			saveRSSIData(filename+"/wifi.txt",collectWifi);
+			//handler.sendEmptyMessage(0);
+		}
+		
+	}
+	
+	private static void saveRSSIData(String filename,List<RSSIData> rssiList) {
+
+		StringBuilder sb=new StringBuilder();
+		for(RSSIData rd:rssiList)
+		{
+			sb.append(rd.toString());
+			sb.append("\n");
+		}
+		FileOperator.write(filename, sb.toString());
+	}
+	
+	private static List<RSSIData> generateRSSIData(Line line, String data) {
+
+		List<RSSIData> list=new ArrayList<RSSIData>();
+		String lines[]=data.split("\n");
+		int size=lines.length;
+		double xlen=line.end.x-line.start.x;
+		if(xlen==0)
+		{
+			double p=(line.end.y-line.start.y)/size;
+			double ny=p;
+			for(int i=0;i<size;i++)
+			{
+				float x=line.start.x;
+				float y=(float) (line.start.y+ny);
+				
+				RSSIData rssi=new RSSIData(lines[i]);
+				rssi.x=(float) (x/GlobalProperties.MAP_SCALE);
+				rssi.y=(float) (y/GlobalProperties.MAP_SCALE);
+				list.add(rssi);
+				ny+=p;
+			}
+			return list;
+		}
+		
+		double p=xlen/size;
+		double nx=p;
+		for(int i=0;i<size;i++)
+		{
+			float x=(float) (line.start.x+nx);
+			float y=(float) (line.start.y+nx*line.getGradient());
+			if(lines[i].length()<10)
+				continue;
+			RSSIData rssi=new RSSIData(lines[i]);
+			rssi.x=(float) (x/GlobalProperties.MAP_SCALE);
+			rssi.y=(float) (y/GlobalProperties.MAP_SCALE);
+			list.add(rssi);
+			
+			nx+=p;
+		}
+		return list;
+		
+	}
+	
+	
+	public final static String baseDir = Environment.getExternalStorageDirectory().getPath()
+			+ "/"+GlobalProperties.FINGERPRINTS_BASE_DIR+"/";
+	//private static ExecutorService es=Executors.newSingleThreadExecutor();
+	public static void mergeData(Line line)
+	{
+		String filename=baseDir+"/"+GlobalProperties.currentFloor.getFloorPath()+
+				"/"+line.toFileName();
+		//pd = ProgressDialog.show(context, "Merge Fingerpints", "Wait……");
+		//es.execute(new MagneticStorer(filename));
+		//es.execute(new WiFiStorer(filename,line));
+		//es.awaitTermination(10, TimeUnit.SECONDS);
+		MagneticStorer.save(filename);
+		WiFiStorer.save(filename, line);
+		Log.i("SensorDataMerge","merge success.");
+		
+	}
+	/*
+	static Handler handler = new Handler() {  
+        @Override  
+        public void handleMessage(Message msg) {// handler接收到消息后就会执行此方法  
+            pd.dismiss();// 关闭ProgressDialog  
+        }  
+    };  */
+
+	private static void saveMagneticData(String filename,List<FCMagneticVector> list) {
+
+		StringBuilder sb=new StringBuilder();
+		for(FCMagneticVector mv:list)
+		{
+			sb.append(mv.toString());
+			sb.append("\n");
+		}
+		FileOperator.write(filename, sb.toString());
+	}
+	
+	private static void merge(List<FCMagneticVector> collectVectors,
+			List<FCMagneticVector> validateVectors) {
+
+		int csize=collectVectors.size();
+		int vsize=validateVectors.size();
+		reverseArray(validateVectors);
+		double scale=vsize*1.0/csize;
+		for(int i=0;i<csize;i++)
+		{
+			collectVectors.get(i).merge(validateVectors.get((int)(i*scale)));
+		}
+	}
+	
+	public static void reverseArray(List list)
+	{
+		if(list==null)
+			return;
+		int p=0,q=list.size()-1;
+		Object tmp=new Object();
+		while(p<q)
+		{
+			tmp=list.get(p);
+			list.set(p, list.get(q));
+			list.set(q, tmp);
+			p++;
+			q--;
+		}
+	}
+
+	private static List<FCMagneticVector> parseMagneticData(String data) {
+
+		List<FCMagneticVector> list=new ArrayList<FCMagneticVector>();
+		String lines[]=data.split("\n");
+		for(String line:lines)
+		{
+			list.add(new FCMagneticVector(line));
+		}
+		return list;
+	}
+
+}

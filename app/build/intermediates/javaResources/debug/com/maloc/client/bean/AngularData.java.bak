@@ -1,0 +1,15 @@
+package com.maloc.client.bean;
+/**
+ * Ω«∂»–≈œ¢
+ * @author xhw
+ *
+ */
+public class AngularData
+{
+	public double totalAngleChanged;
+	public double angleChanged;
+	public float dT;
+	
+	
+	
+}

@@ -1,0 +1,85 @@
+package com.maloc.server.wifi;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.maloc.client.bean.RSSIData;
+
+/**
+ * WiFi指纹生成器
+ * @author xhw Email:xxyx66@126.com
+ */
+public class WiFiMapGenerator {
+	
+	List<RSSIData> rssi=new ArrayList<RSSIData>();
+	Map<String,Set<RSSIData>> bssidMap=new HashMap<String,Set<RSSIData>>();
+	/**
+	 * 将WiFi指纹导入到内存中
+	 * @param wifiFilename, WiFi指纹文件内容
+	 * @return WiFi指纹的数量
+	 * @throws IOException
+	 */
+	public int load(String wifiFilename) throws IOException
+	{
+		int cnt=0;
+		BufferedReader in=new BufferedReader(new FileReader(wifiFilename));
+		
+		try {
+			String str=in.readLine();
+			while(str!=null)
+			{
+				RSSIData rd=new RSSIData(str);
+				rssi.add(rd);
+				str=in.readLine();
+				cnt++;
+			}
+		} finally {
+			in.close();
+		}
+		
+		for(RSSIData rd:rssi)
+		{
+			for(String bssid:rd.rssi.keySet())
+			{
+				Set<RSSIData> set=bssidMap.get(bssid);
+				if(set==null)
+				{
+					set=new HashSet<RSSIData>();
+					bssidMap.put(bssid,set);
+				}
+				set.add(rd);
+			}
+		}
+		return cnt;
+	}
+
+	
+	
+	public List<RSSIData> getRssi() {
+		return rssi;
+	}
+
+	public void setRssi(List<RSSIData> rssi) {
+		this.rssi = rssi;
+	}
+
+
+	public Map<String, Set<RSSIData>> getBssidMap() {
+		return bssidMap;
+	}
+
+
+	public void setBssidMap(Map<String, Set<RSSIData>> bssidMap) {
+		this.bssidMap = bssidMap;
+	}
+
+	
+	
+}

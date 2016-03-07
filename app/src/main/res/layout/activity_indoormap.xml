@@ -1,0 +1,152 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:id="@+id/building_name_column"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:gravity="center_vertical|center_horizontal"
+        android:orientation="vertical" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="30dp" 
+            android:textSize="23sp"
+            android:id="@+id/title"
+            android:text="#"/>
+    </LinearLayout>
+
+    <com.maloc.client.fc.ui.IndoorMapImageView
+        android:id="@+id/indoormap"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/building_name_column"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/logo"
+        android:background="@color/white"
+        android:paddingTop="0dp"
+        android:scaleType="matrix"
+       >
+   </com.maloc.client.fc.ui.IndoorMapImageView>
+
+     <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/building_name_column"
+        android:orientation="vertical" 
+        android:gravity="center_vertical|left"
+         >
+        
+         <TextView 
+            android:layout_width="30dp"
+            android:layout_height="wrap_content"
+            />
+         
+         <LinearLayout 
+              android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" 
+        android:gravity="center_vertical|left"
+             >
+             <TextView 
+            android:layout_width="30dp"
+            android:layout_height="wrap_content"
+            />
+             <ImageButton
+            android:id="@+id/rotate"
+            android:background="#00000000"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/rotate" 
+            android:contentDescription="@string/app_name"/>
+         </LinearLayout>
+         
+        </LinearLayout>
+    
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|center_horizontal"
+       
+         >
+
+     <!-- <RadioGroup 
+         android:id="@+id/radioGroup" 
+         android:contentDescription="mode" 
+         android:layout_width="wrap_content" 
+         android:layout_height="wrap_content"
+         android:orientation="vertical">
+    	<RadioButton 
+    	    android:layout_width="wrap_content" 
+    	    android:layout_height="wrap_content" 
+    	    android:id="@+id/radioMale" 
+    	    android:text="Draw Path" 
+    	    android:checked="true">
+    	</RadioButton>
+     	<RadioButton
+     	     android:layout_width="wrap_content" 
+     	     android:layout_height="wrap_content" 
+     	     android:id="@+id/radioFemale" 
+     	     android:text="Collect">
+     	</RadioButton>  
+        <ImageButton
+            android:id="@+id/drawLine"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/start_point" />
+            -->
+            
+         
+        <ImageButton
+            android:id="@+id/begin"
+            android:background="#00000000"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/begin" 
+            android:contentDescription="@string/app_name"/>
+        <TextView 
+            android:layout_width="30dp"
+            android:layout_height="wrap_content"
+            />
+        
+        
+        <ImageButton
+            android:id="@+id/upload"
+            android:background="#00000000"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/upload" 
+            android:contentDescription="@string/app_name"/>
+         <TextView 
+            android:layout_width="30dp"
+            android:layout_height="wrap_content"/>
+         
+          <ImageButton
+            android:id="@+id/localize"
+            android:background="#00000000"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/localize" 
+            android:contentDescription="@string/app_name"/>
+         <TextView 
+            android:layout_width="30dp"
+            android:layout_height="wrap_content"/>
+          
+         <ImageButton  
+            android:id="@+id/menu" 
+            android:background="#00000000" 
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/setting"
+            android:contentDescription="@string/app_name" />
+    </LinearLayout>
+
+</RelativeLayout>

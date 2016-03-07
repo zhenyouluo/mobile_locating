@@ -1,0 +1,92 @@
+<RelativeLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:orientation="vertical"
+	    android:gravity="center_horizontal">
+
+    <LinearLayout 
+        android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:orientation="vertical"
+	    android:layout_alignParentTop="true"
+        >
+    <TextView 
+         android:layout_width="fill_parent"
+         android:layout_height="50dp"
+        />
+    
+    <ImageView
+            android:id="@+id/logo"
+            android:layout_width="fill_parent"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"
+            android:layout_gravity="center_vertical|center_horizontal"
+            android:paddingTop="0dp"
+            android:scaleType="matrix"
+            android:src="@drawable/sinan" 
+            android:contentDescription="@string/logo">
+    </ImageView>
+    </LinearLayout>
+    
+    <LinearLayout 
+        android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:orientation="vertical"
+	    android:layout_alignParentBottom="true"
+        >
+    <TextView 
+         android:layout_width="fill_parent"
+         android:layout_height="20dp"
+        />
+    <EditText 
+         android:id="@+id/username"
+         android:layout_width="fill_parent"
+         android:layout_height="match_parent"
+         android:hint="@string/username"
+         android:text="test"
+        android:inputType="text"/>
+    <TextView 
+         android:layout_width="fill_parent"
+         android:layout_height="20dp"
+        />
+    <EditText 
+         android:id="@+id/password"
+         android:layout_width="fill_parent"
+         android:layout_height="match_parent"
+         android:hint="@string/password"
+        android:inputType="textPassword"/>
+    <TextView 
+         android:layout_width="fill_parent"
+         android:layout_height="50dp"
+        />
+    <LinearLayout 
+        android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:orientation="horizontal"
+	    android:gravity="center">
+        
+         <Button 
+         android:id="@+id/map_mode"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:text="Map Mode"
+        />
+         <TextView 
+         android:layout_width="30dp"
+         android:layout_height="wrap_content"
+        />
+          <Button 
+         android:id="@+id/test_mode"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:text="Test Mode"
+        />
+    </LinearLayout>
+   
+    <TextView 
+         android:layout_width="fill_parent"
+         android:layout_height="50dp"
+        />
+    </LinearLayout>
+</RelativeLayout><!-- From: file:/C:/Users/admin/Documents/Android_workspace/FingerprintsCollection/app/src/main/res/layout/activity_login.xml -->

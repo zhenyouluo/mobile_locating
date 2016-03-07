@@ -1,0 +1,128 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical" >
+
+        <Button
+                android:id="@+id/set_confirm"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Confirm" />
+    </LinearLayout>
+    <LinearLayout 
+         android:id="@+id/layout1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical"
+       >
+         <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/solutions"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+   
+         <CheckBox
+        android:id="@+id/wifi_fingerprint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="21dp"
+        android:text="WiFi Fingerprint" 
+        android:checked="true"/>
+         <CheckBox
+        android:id="@+id/magnetic_fingerprint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Magnetic Fingerprints"
+        android:checked="true" />
+         
+        
+    </LinearLayout>
+
+   
+
+   <LinearLayout 
+        android:id="@+id/layout2"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/layout1"
+        android:layout_marginTop="20dp"
+        android:orientation="vertical">
+       <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Heuristic sensitivity:"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <SeekBar
+        android:id="@+id/heu_sensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+      />
+       
+   </LinearLayout>
+
+  <LinearLayout 
+       android:id="@+id/layout3"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/layout2"
+        android:orientation="vertical"
+        >
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Heuristic Range:"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+         />
+      <EditText 
+        android:id="@+id/range"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        />  
+    </LinearLayout>
+    
+    <LinearLayout 
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/layout3"
+        android:layout_marginTop="20dp"
+        android:orientation="vertical"
+        >
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Particel Num:"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+         />
+      <EditText 
+        android:id="@+id/particle_num"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        />  
+        
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Adaptive Threshold:"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+         />
+      <EditText 
+        android:id="@+id/adaptive_threshold"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        />  
+    </LinearLayout> 
+  
+</RelativeLayout>
